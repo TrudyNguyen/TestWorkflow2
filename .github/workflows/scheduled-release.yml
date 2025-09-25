@@ -1,6 +1,43 @@
 
+name: Scheduled Release
 
 on:
   schedule:
-    - cron: '4 3 * * 1'  # Every Monday at 3 AM UTC
+    - cron: '0 3 * * 5'  # Every Monday at 3 AM UTC
+  workflow_dispatch:  # Allow manual trigger
 
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create Pull Request from dev to master
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: master
+          branch: dev
+          title: "Scheduled Release: Merge dev into master"
+          body: "Automated weekly release from dev to master."
+
+  tag-release:
+    needs: create-release-pr
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Create release tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git fetch --all
+          git checkout master
+          git tag release-${{ steps.date.outputs.date }}
+          git push origin release-${{ steps.date.outputs.date }}
